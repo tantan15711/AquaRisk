@@ -225,6 +225,30 @@ type BackendRiskZone = {
   longitude: number
 }
 
+type RainViewerFrame = {
+  time: number
+  path: string
+}
+
+type RainViewerResponse = {
+  host?: string
+  radar?: {
+    past?: RainViewerFrame[]
+    nowcast?: RainViewerFrame[]
+  }
+}
+
+type RadarFrame = {
+  tileUrl: string
+  observedAt: string
+}
+
+type LocalObservation = {
+  kind: 'heavy-rain' | 'thunder'
+  label: string
+  expiresAt: number
+}
+
 type AquaStore = {
   location: Coordinates
   setLocation: (location: Coordinates) => void
@@ -348,6 +372,28 @@ async function fetchFlood(location: Coordinates): Promise<FloodResponse> {
   }
 
   return response.json()
+}
+
+async function fetchRadarFrame(): Promise<RadarFrame | undefined> {
+  const response = await fetch('https://api.rainviewer.com/public/weather-maps.json')
+
+  if (!response.ok) {
+    throw new Error('No se pudo consultar radar de lluvia')
+  }
+
+  const data = (await response.json()) as RainViewerResponse
+  const frames = [
+    ...(data.radar?.past ?? []),
+    ...(data.radar?.nowcast ?? []),
+  ].filter((frame) => frame.path)
+  const latestFrame = frames.at(-1)
+
+  if (!data.host || !latestFrame) return undefined
+
+  return {
+    tileUrl: `${data.host}${latestFrame.path}/256/{z}/{x}/{y}/2/1_1.png`,
+    observedAt: new Date(latestFrame.time * 1000).toISOString(),
+  }
 }
 
 function getDistanceKm(
@@ -1085,6 +1131,35 @@ function buildRiskSummary(weather?: WeatherResponse): RiskSummary {
   }
 }
 
+function buildObservedRiskSummary(
+  baseRisk: RiskSummary,
+  observation: LocalObservation | null,
+): RiskSummary {
+  if (!observation) return baseRisk
+
+  const isThunder = observation.kind === 'thunder'
+
+  return {
+    ...baseRisk,
+    level: isThunder ? 'Critico' : 'Alto',
+    score: Math.max(baseRisk.score, isThunder ? 92 : 82),
+    tone: isThunder ? 'danger' : 'warning',
+    headline: isThunder ? 'Mejor evita salir' : 'Lluvia fuerte reportada',
+    message: isThunder
+      ? 'Tu observacion local reporta truenos; toma prioridad sobre el pronostico horario.'
+      : 'Tu observacion local reporta lluvia fuerte; evita zonas bajas y espera si puedes.',
+    rainLabel: isThunder ? 'Tormenta reportada' : 'Lluvia fuerte reportada',
+    exitAdvice: isThunder
+      ? 'No salgas si no es necesario.'
+      : 'Si no es urgente, espera a que baje la lluvia.',
+    thunderText: isThunder ? 'Truenos reportados ahora' : baseRisk.thunderText,
+    thunderLikely: isThunder || baseRisk.thunderLikely,
+    timingText:
+      'Prioridad a observacion local: el modelo puede ir atrasado en tormentas.',
+    peakTimeText: 'Observacion local activa',
+  }
+}
+
 function buildRainCellCollection(cells: RainCell[]): RainCellCollection {
   return {
     type: 'FeatureCollection',
@@ -1208,14 +1283,51 @@ function formatNotificationStatus(
   return 'pendientes'
 }
 
+const RADAR_SOURCE_ID = 'rainviewer-radar'
+const RADAR_LAYER_ID = 'rainviewer-radar-layer'
+
+function syncRadarLayer(activeMap: maplibregl.Map, radarFrame?: RadarFrame) {
+  if (activeMap.getLayer(RADAR_LAYER_ID)) {
+    activeMap.removeLayer(RADAR_LAYER_ID)
+  }
+
+  if (activeMap.getSource(RADAR_SOURCE_ID)) {
+    activeMap.removeSource(RADAR_SOURCE_ID)
+  }
+
+  if (!radarFrame) return
+
+  activeMap.addSource(RADAR_SOURCE_ID, {
+    type: 'raster',
+    tiles: [radarFrame.tileUrl],
+    tileSize: 256,
+    attribution: 'RainViewer',
+  })
+
+  activeMap.addLayer(
+    {
+      id: RADAR_LAYER_ID,
+      type: 'raster',
+      source: RADAR_SOURCE_ID,
+      paint: {
+        'raster-opacity': 0.48,
+        'raster-fade-duration': 0,
+      },
+    },
+    activeMap.getLayer('rain-cell-circle') ? 'rain-cell-circle' : undefined,
+  )
+}
+
 function RiskMap({
   location,
   rainCells,
   safePlaces,
+  radarFrame,
 }: {
   location: Coordinates
   rainCells: RainCellCollection
   safePlaces: SafePlaceCollection
+  radarFrame?: RadarFrame
 }) {
   const mapContainer = useRef<HTMLDivElement | null>(null)
   const map = useRef<maplibregl.Map | null>(null)
@@ -1223,6 +1335,7 @@ function RiskMap({
   const initialLocation = useRef(location)
   const initialRainCells = useRef(rainCells)
   const initialSafePlaces = useRef(safePlaces)
+  const initialRadarFrame = useRef(radarFrame)
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return
@@ -1276,6 +1389,8 @@ function RiskMap({
         type: 'geojson',
         data: initialSafePlaces.current,
       })
+
+      syncRadarLayer(map.current!, initialRadarFrame.current)
 
       map.current?.addLayer({
         id: 'rain-cell-circle',
@@ -1400,6 +1515,8 @@ function RiskMap({
         | maplibregl.GeoJSONSource
         | undefined
       safeSource?.setData(safePlaces)
+
+      syncRadarLayer(activeMap, radarFrame)
     }
 
     if (activeMap.isStyleLoaded()) {
@@ -1407,7 +1524,7 @@ function RiskMap({
     } else {
       activeMap.once('load', updateMapData)
     }
-  }, [location, rainCells, safePlaces])
+  }, [location, rainCells, safePlaces, radarFrame])
 
   return <div ref={mapContainer} className="risk-map" aria-label="Mapa de lluvia" />
 }
@@ -1441,6 +1558,8 @@ function App() {
   const [locationMessage, setLocationMessage] = useState('')
   const [alertMessage, setAlertMessage] = useState('')
   const [isLocating, setIsLocating] = useState(false)
+  const [localObservation, setLocalObservation] =
+    useState<LocalObservation | null>(null)
   const lastAutoAlertRef = useRef('')
 
   const weatherQuery = useQuery({
@@ -1469,6 +1588,14 @@ function App() {
     ],
     queryFn: () => fetchFlood(location),
     staleTime: 1000 * 60 * 30,
+    retry: 1,
+  })
+
+  const radarQuery = useQuery({
+    queryKey: ['rainviewer-radar'],
+    queryFn: fetchRadarFrame,
+    staleTime: 1000 * 60 * 4,
+    refetchInterval: 1000 * 60 * 5,
     retry: 1,
   })
 
@@ -1503,8 +1630,16 @@ function App() {
     retry: 1,
   })
 
+  const activeObservation =
+    localObservation && localObservation.expiresAt > Date.now()
+      ? localObservation
+      : null
   const weather = weatherQuery.data
-  const risk = useMemo(() => buildRiskSummary(weather), [weather])
+  const baseRisk = useMemo(() => buildRiskSummary(weather), [weather])
+  const risk = useMemo(
+    () => buildObservedRiskSummary(baseRisk, activeObservation),
+    [baseRisk, activeObservation],
+  )
   const flood = useMemo(() => buildFloodSummary(floodQuery.data), [floodQuery.data])
   const rainCells = useMemo(
     () => buildRainCellCollection(nearbyQuery.data ?? []),
@@ -1561,6 +1696,26 @@ function App() {
     osmSafePlacesQuery.isLoading || backendSafePlacesQuery.isLoading
   const hasSafePlacesError =
     osmSafePlacesQuery.isError && safePlaces.length === 0
+
+  useEffect(() => {
+    if (!localObservation) return
+
+    const timeout = window.setTimeout(() => {
+      setLocalObservation((current) =>
+        current && current.expiresAt <= Date.now() ? null : current,
+      )
+    }, Math.max(1000, localObservation.expiresAt - Date.now()))
+
+    return () => window.clearTimeout(timeout)
+  }, [localObservation])
+
+  const reportLocalObservation = (kind: LocalObservation['kind']) => {
+    setLocalObservation({
+      kind,
+      label: kind === 'thunder' ? 'Truenos ahora' : 'Lluvia fuerte ahora',
+      expiresAt: Date.now() + 1000 * 60 * 90,
+    })
+  }
 
   const requestLocation = () => {
     if (!navigator.geolocation) {
@@ -1738,6 +1893,7 @@ function App() {
                 weatherQuery.refetch()
                 nearbyQuery.refetch()
                 floodQuery.refetch()
+                radarQuery.refetch()
               }}
               aria-label="Actualizar datos"
             >
@@ -1749,6 +1905,7 @@ function App() {
             location={location}
             rainCells={rainCells}
             safePlaces={safePlaceCollection}
+            radarFrame={radarQuery.data}
           />
 
           <div className="legend">
@@ -1769,9 +1926,9 @@ function App() {
             </span>
           </div>
           <p className="map-note">
-            Los puntos del mapa se calculan con consultas reales de Open-Meteo
-            cerca de tu ubicacion. Los puntos seguros vienen de OpenStreetMap y
-            deben confirmarse con autoridades durante una emergencia.
+            Los circulos se calculan con Open-Meteo cerca de tu ubicacion. La
+            capa de radar usa RainViewer cuando esta disponible. Los puntos
+            seguros vienen de OpenStreetMap y deben confirmarse con autoridades.
           </p>
         </section>
 
@@ -1795,6 +1952,16 @@ function App() {
               label="Acumulado 6 h"
               value={`${formatNumber(rainNext6)} mm`}
               detail={`${probability}% probabilidad maxima`}
+            />
+            <MetricCard
+              icon={<CloudRain size={20} aria-hidden="true" />}
+              label="Radar"
+              value={radarQuery.data ? 'Capa activa' : 'Sin radar'}
+              detail={
+                radarQuery.data
+                  ? `Ultima imagen: ${formatTime(radarQuery.data.observedAt)}`
+                  : 'RainViewer no devolvio imagen reciente'
+              }
             />
             <MetricCard
               icon={<CloudLightning size={20} aria-hidden="true" />}
@@ -1841,6 +2008,37 @@ function App() {
               1 mm de lluvia significa 1 litro de agua por metro cuadrado. Por
               eso AquaRisk tambien lo traduce a ligera, moderada o fuerte.
             </p>
+          </div>
+
+          <div className="observation-box">
+            <div>
+              <span className="section-kicker">Observacion local</span>
+              <h3>Lo que ves ahora</h3>
+              <p>
+                Si la tormenta ya esta encima y el modelo va atrasado, marca una
+                senal temporal para priorizar tu observacion.
+              </p>
+            </div>
+            <div className="observation-actions">
+              <button
+                type="button"
+                onClick={() => reportLocalObservation('heavy-rain')}
+              >
+                Lluvia fuerte
+              </button>
+              <button type="button" onClick={() => reportLocalObservation('thunder')}>
+                Truenos
+              </button>
+              <button type="button" onClick={() => setLocalObservation(null)}>
+                Limpiar
+              </button>
+            </div>
+            {activeObservation && (
+              <small>
+                Activo: {activeObservation.label}. AquaRisk dara prioridad a este
+                reporte por 90 min.
+              </small>
+            )}
           </div>
 
           {locationMessage && <p className="status-note">{locationMessage}</p>}
