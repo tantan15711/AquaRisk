@@ -663,8 +663,19 @@ function getCurrentIndex(weather?: WeatherResponse) {
 }
 
 function getUpcomingHours(weather?: WeatherResponse, hours = 12): HourForecast[] {
+  return getHoursFromIndex(weather, getCurrentIndex(weather), hours)
+}
+
+function getMonitoringHours(weather?: WeatherResponse, hours = 4): HourForecast[] {
+  return getHoursFromIndex(weather, Math.max(0, getCurrentIndex(weather) - 1), hours)
+}
+
+function getHoursFromIndex(
+  weather: WeatherResponse | undefined,
+  startIndex: number,
+  hours: number,
+): HourForecast[] {
   const hourly = weather?.hourly
-  const startIndex = getCurrentIndex(weather)
   const times = hourly?.time ?? []
   const temperature = hourly?.temperature_2m ?? []
   const apparentTemperature = hourly?.apparent_temperature ?? []
@@ -689,6 +700,20 @@ function getUpcomingHours(weather?: WeatherResponse, hours = 12): HourForecast[]
       windSpeed: windSpeed[index],
     }
   })
+}
+
+function mergeHours(...hourGroups: HourForecast[][]) {
+  const byTime = new Map<string, HourForecast>()
+
+  for (const hours of hourGroups) {
+    for (const hour of hours) {
+      byTime.set(hour.time, hour)
+    }
+  }
+
+  return [...byTime.values()].sort(
+    (left, right) => new Date(left.time).getTime() - new Date(right.time).getTime(),
+  )
 }
 
 function hasThunder(hours: HourForecast[]) {
@@ -759,6 +784,14 @@ function getHourRisk(hour: HourForecast): HourRisk {
       label: 'Moderada',
       tone: 'watch',
       advice: 'Vigila calles bajas',
+    }
+  }
+
+  if (hour.rain >= 1 && hour.probability >= 70) {
+    return {
+      label: 'Probable',
+      tone: 'warning',
+      advice: 'Espera si puedes',
     }
   }
 
@@ -902,16 +935,26 @@ function buildFloodSummary(flood?: FloodResponse): FloodSummary {
 function buildRiskSummary(weather?: WeatherResponse): RiskSummary {
   const rainNow = getRainNow(weather)
   const upcoming12 = getUpcomingHours(weather, 12)
+  const monitoringHours = getMonitoringHours(weather, 5)
+  const riskWindow = mergeHours(monitoringHours, upcoming12)
   const immediateHours = getUpcomingHours(weather, 3)
   const rainNext3 = getRainNextHours(weather, 3)
   const rainNext6 = getRainNextHours(weather, 6)
-  const immediateProbability = getProbability(weather, 3)
+  const immediateProbability = Math.max(
+    getProbability(weather, 3),
+    ...monitoringHours.map((hour) => hour.probability),
+    0,
+  )
   const dayProbability = getProbability(weather, 12)
   const maxRainHour = Math.max(...upcoming12.map((hour) => hour.rain), rainNow)
-  const peakHour = getPeakHour(upcoming12)
-  const thunderSoon = hasThunder(immediateHours)
+  const peakHour = getPeakHour(riskWindow)
+  const thunderSoon = hasThunder(monitoringHours)
   const thunderLater = hasThunder(upcoming12)
-  const immediatePeak = Math.max(...immediateHours.map((hour) => hour.rain), rainNow)
+  const immediatePeak = Math.max(...monitoringHours.map((hour) => hour.rain), rainNow)
+  const activeRainSignal =
+    rainNow >= 0.2 || (immediateHours[0]?.rain ?? 0) >= 0.2
+  const highProbabilityRain = activeRainSignal && immediateProbability >= 65
+  const recentHeavySignal = immediatePeak >= 7.5 || thunderSoon
   const immediateScore = Math.min(
     100,
     Math.round(
@@ -919,7 +962,8 @@ function buildRiskSummary(weather?: WeatherResponse): RiskSummary {
         immediatePeak * 10 +
         rainNext3 * 6 +
         immediateProbability * 0.35 +
-        (thunderSoon ? 22 : 0),
+        (thunderSoon ? 22 : 0) +
+        (highProbabilityRain ? 10 : 0),
     ),
   )
   const forecastScore = Math.min(
@@ -932,18 +976,22 @@ function buildRiskSummary(weather?: WeatherResponse): RiskSummary {
     ),
   )
   const hasLaterRisk = forecastScore >= 45 && immediateScore < 45
-  const score = immediateScore
+  const score = Math.max(immediateScore, highProbabilityRain ? 58 : 0)
   const level = getRiskLevel(score, thunderSoon)
   const tone = getToneFromScore(score, thunderSoon)
-  const rainLabel = describeRain(Math.max(rainNow, maxRainHour))
+  const rainLabel = describeRain(Math.max(rainNow, maxRainHour, immediatePeak))
   const durationText = getDurationText(upcoming12)
   const peakTimeText =
     peakHour && peakHour.rain >= 0.2
-      ? `Pico probable: ${formatTime(peakHour.time)}`
+      ? `Pico cercano: ${formatTime(peakHour.time)} (ventana +-1 h)`
       : 'Sin pico relevante'
-  const timingText = hasLaterRisk
-    ? 'Riesgo bajo ahora; vigilancia por lluvia mas tarde.'
-    : 'Riesgo calculado para este momento y las proximas horas.'
+  const timingText = recentHeavySignal
+    ? 'Tormentas y chubascos pueden recorrerse 30-60 min.'
+    : hasLaterRisk
+      ? 'Riesgo bajo ahora; vigilancia por lluvia mas tarde.'
+      : highProbabilityRain
+        ? 'Hay lluvia activa o muy probable; usa esta hora como ventana aproximada.'
+        : 'Riesgo calculado para este momento y las proximas horas.'
 
   if (hasLaterRisk) {
     return {
@@ -984,10 +1032,16 @@ function buildRiskSummary(weather?: WeatherResponse): RiskSummary {
       level,
       score,
       tone,
-      headline: 'Sal solo con precaucion',
-      message: 'Puede haber lluvia fuerte, charcos grandes o baja visibilidad.',
+      headline: highProbabilityRain
+        ? 'Espera si puedes'
+        : 'Sal solo con precaucion',
+      message: highProbabilityRain
+        ? 'Hay lluvia activa o muy probable; el pico puede moverse dentro de esta hora.'
+        : 'Puede haber lluvia fuerte, charcos grandes o baja visibilidad.',
       rainLabel,
-      exitAdvice: 'Evita zonas bajas y revisa una ruta alterna.',
+      exitAdvice: highProbabilityRain
+        ? 'Si no es urgente, espera a que baje la lluvia.'
+        : 'Evita zonas bajas y revisa una ruta alterna.',
       durationText,
       thunderText: 'Sin truenos fuertes detectados',
       thunderLikely: thunderSoon,
@@ -1004,7 +1058,9 @@ function buildRiskSummary(weather?: WeatherResponse): RiskSummary {
       headline: 'Precaucion moderada',
       message: 'La lluvia no parece extrema, pero conviene monitorear cambios.',
       rainLabel,
-      exitAdvice: 'Puedes salir, pero revisa el mapa antes.',
+      exitAdvice: activeRainSignal
+        ? 'Sal solo si es necesario y revisa el cielo.'
+        : 'Puedes salir, pero revisa el mapa antes.',
       durationText,
       thunderText: 'Sin truenos fuertes detectados',
       thunderLikely: thunderSoon,
@@ -1813,6 +1869,11 @@ function App() {
               Lluvia + riesgo
             </div>
           </div>
+
+          <p className="timeline-note">
+            En tormentas, la lluvia puede adelantarse o retrasarse 30-60 min.
+            Toma cada hora como una ventana probable, no como un minuto exacto.
+          </p>
 
           <div className="hourly-table" aria-label="Pronostico de 24 horas">
             {nextHours.length > 0 ? (

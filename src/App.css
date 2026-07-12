@@ -463,6 +463,14 @@ button {
   white-space: nowrap;
 }
 
+.timeline-note {
+  margin: 10px 0 14px;
+  max-width: 760px;
+  color: #3f5f7a;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
 .hourly-table {
   display: grid;
   gap: 9px;
