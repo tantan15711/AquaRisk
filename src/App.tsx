@@ -245,13 +245,71 @@ const THUNDER_CODES = new Set([95, 96, 99])
 const useAquaStore = create<AquaStore>((set) => ({
   location: DEFAULT_LOCATION,
   setLocation: (location) => set({ location }),
-  notificationPermission:
-    typeof Notification === 'undefined'
-      ? 'unsupported'
-      : Notification.permission,
+  notificationPermission: getNotificationPermission(),
   setNotificationPermission: (notificationPermission) =>
     set({ notificationPermission }),
 }))
+
+function getNotificationApi() {
+  if (typeof window === 'undefined' || !('Notification' in window)) return null
+  return window.Notification
+}
+
+function getNotificationPermission(): NotificationPermission | 'unsupported' {
+  const notificationApi = getNotificationApi()
+  return notificationApi ? notificationApi.permission : 'unsupported'
+}
+
+async function getReadyServiceWorker() {
+  if (
+    typeof navigator === 'undefined' ||
+    !('serviceWorker' in navigator) ||
+    typeof window === 'undefined'
+  ) {
+    return undefined
+  }
+
+  try {
+    return await Promise.race<ServiceWorkerRegistration | undefined>([
+      navigator.serviceWorker.ready,
+      new Promise((resolve) => {
+        window.setTimeout(() => resolve(undefined), 1800)
+      }),
+    ])
+  } catch {
+    return undefined
+  }
+}
+
+async function showAquaNotification(
+  title: string,
+  options: NotificationOptions = {},
+) {
+  const notificationApi = getNotificationApi()
+
+  if (!notificationApi || notificationApi.permission !== 'granted') {
+    return false
+  }
+
+  const registration = await getReadyServiceWorker()
+
+  if (registration?.showNotification) {
+    try {
+      await registration.showNotification(title, options)
+      return true
+    } catch (error) {
+      console.warn('No se pudo mostrar la notificacion con service worker.', error)
+    }
+  }
+
+  try {
+    new notificationApi(title, options)
+    return true
+  } catch (error) {
+    console.warn('No se pudo mostrar la notificacion en este navegador.', error)
+    return false
+  }
+}
 
 async function fetchWeather(location: Coordinates): Promise<WeatherResponse> {
   const params = new URLSearchParams({
@@ -1481,16 +1539,27 @@ function App() {
   }
 
   const requestNotifications = async () => {
-    if (typeof Notification === 'undefined') {
+    const notificationApi = getNotificationApi()
+
+    if (!notificationApi) {
       setNotificationPermission('unsupported')
+      setAlertMessage('Este navegador no permite alertas preventivas.')
       return
     }
 
-    const permission = await Notification.requestPermission()
+    let permission: NotificationPermission
+
+    try {
+      permission = await notificationApi.requestPermission()
+    } catch {
+      setAlertMessage('No se pudo pedir permiso de notificaciones en este navegador.')
+      return
+    }
+
     setNotificationPermission(permission)
 
     if (permission === 'granted') {
-      new Notification('AquaRisk activado', {
+      const wasShown = await showAquaNotification('AquaRisk activado', {
         body: 'Recibiras avisos preventivos mientras AquaRisk este activo.',
       })
 
@@ -1506,6 +1575,16 @@ function App() {
       } else {
         setAlertMessage('Alertas del navegador activadas en esta version local.')
       }
+
+      if (!wasShown) {
+        setAlertMessage(
+          'Permiso activado. Si tu celular bloquea la ventana de alerta, AquaRisk seguira avisando dentro de la app.',
+        )
+      }
+    } else if (permission === 'denied') {
+      setAlertMessage('Las alertas estan bloqueadas en este navegador.')
+    } else {
+      setAlertMessage('Las alertas quedaron pendientes de permiso.')
     }
   }
 
@@ -1536,7 +1615,7 @@ function App() {
       ? `${describeRain(alertHour.rain)} probable a las ${formatTime(alertHour.time)}. Revisa zonas bajas y puntos seguros.`
       : `${risk.exitAdvice} ${flood.status}.`
 
-    new Notification('AquaRisk: aviso preventivo', {
+    void showAquaNotification('AquaRisk: aviso preventivo', {
       body: alertBody,
       tag: 'aquarisk-auto-alert',
     })
