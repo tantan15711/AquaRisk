@@ -333,6 +333,33 @@ button {
   background: #eab308;
 }
 
+.radar-legend {
+  display: grid;
+  grid-template-columns: max-content minmax(120px, 220px) repeat(3, max-content);
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: #475569;
+  font-size: 0.84rem;
+}
+
+.radar-legend span {
+  color: #101820;
+  font-weight: 850;
+}
+
+.radar-legend i {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #38bdf8, #22c55e, #facc15, #f97316, #dc2626);
+}
+
+.radar-legend small {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
 .map-note {
   margin: 12px 0 0;
   color: #64748b;
@@ -947,6 +974,15 @@ button {
   .forecast-chip {
     width: 100%;
     justify-content: center;
+  }
+
+  .radar-legend {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .radar-legend i {
+    width: 100%;
   }
 
   .observation-actions {

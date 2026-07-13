@@ -261,9 +261,9 @@ type AquaStore = {
 }
 
 const DEFAULT_LOCATION: Coordinates = {
-  latitude: 19.4326,
-  longitude: -99.1332,
-  label: 'Zona de monitoreo inicial',
+  latitude: 14.9056,
+  longitude: -92.2634,
+  label: 'Centro de Tapachula, Chiapas',
 }
 
 const THUNDER_CODES = new Set([95, 96, 99])
@@ -1346,7 +1346,7 @@ function syncRadarLayer(activeMap: maplibregl.Map, radarFrame?: RadarFrame) {
       type: 'raster',
       source: RADAR_SOURCE_ID,
       paint: {
-        'raster-opacity': 0.48,
+        'raster-opacity': 0.64,
         'raster-fade-duration': 0,
       },
     },
@@ -1986,10 +1986,18 @@ function App() {
               <i className="legend-dot support-dot" /> Punto seguro
             </span>
           </div>
+          <div className="radar-legend" aria-label="Intensidad de lluvia por radar">
+            <span>Radar de lluvia</span>
+            <i />
+            <small>ligera</small>
+            <small>fuerte</small>
+            <small>intensa</small>
+          </div>
           <p className="map-note">
-            Los círculos se calculan con Open-Meteo cerca de tu ubicación. La
-            capa de radar usa RainViewer cuando está disponible. Los puntos
-            seguros vienen de OpenStreetMap y deben confirmarse con autoridades.
+            Los círculos se calculan con Open-Meteo cerca de tu ubicación. Los
+            colores tipo azul, verde, amarillo y rojo son lluvia observada por
+            radar, no calor. Los puntos seguros vienen de OpenStreetMap y deben
+            confirmarse con autoridades.
           </p>
         </section>
 
@@ -2021,7 +2029,7 @@ function App() {
               detail={
                 radarQuery.data
                   ? `Ultima imagen: ${formatTime(radarQuery.data.observedAt)}`
-                  : 'RainViewer no devolvio imagen reciente'
+                  : 'RainViewer no devolvió imagen reciente'
               }
             />
             <MetricCard
