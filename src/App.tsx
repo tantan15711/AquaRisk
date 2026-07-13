@@ -1996,8 +1996,12 @@ function App() {
           <p className="map-note">
             Los círculos se calculan con Open-Meteo cerca de tu ubicación. Los
             colores tipo azul, verde, amarillo y rojo son lluvia observada por
-            radar, no calor. Los puntos seguros vienen de OpenStreetMap y deben
-            confirmarse con autoridades.
+            radar, no calor. Si no aparecen manchas de color, RainViewer no está
+            detectando lluvia visible sobre esta zona en la última imagen.
+          </p>
+          <p className="map-note">
+            Los puntos seguros vienen de OpenStreetMap y deben confirmarse con
+            autoridades.
           </p>
         </section>
 
@@ -2025,10 +2029,10 @@ function App() {
             <MetricCard
               icon={<CloudRain size={20} aria-hidden="true" />}
               label="Radar"
-              value={radarQuery.data ? 'Capa activa' : 'Sin radar'}
+              value={radarQuery.data ? 'Disponible' : 'Sin radar'}
               detail={
                 radarQuery.data
-                  ? `Ultima imagen: ${formatTime(radarQuery.data.observedAt)}`
+                  ? `Última imagen: ${formatTime(radarQuery.data.observedAt)}. Sin colores = sin eco local.`
                   : 'RainViewer no devolvió imagen reciente'
               }
             />
