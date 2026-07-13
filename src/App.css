@@ -442,7 +442,7 @@ button {
 
 .observation-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -457,10 +457,21 @@ button {
   font-weight: 850;
 }
 
-.observation-actions button:nth-child(2) {
+.observation-actions button.danger-action {
   color: #991b1b;
   background: #fee2e2;
   border-color: #fecaca;
+}
+
+.observation-actions button.active {
+  color: #ffffff;
+  background: #0284c7;
+  border-color: #0369a1;
+}
+
+.observation-actions button.danger-action.active {
+  background: #dc2626;
+  border-color: #b91c1c;
 }
 
 .observation-actions button:hover {

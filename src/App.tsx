@@ -243,9 +243,11 @@ type RadarFrame = {
   observedAt: string
 }
 
+type LocalObservationRain = 'light' | 'heavy'
+
 type LocalObservation = {
-  kind: 'heavy-rain' | 'thunder'
-  label: string
+  rain?: LocalObservationRain
+  thunder: boolean
   expiresAt: number
 }
 
@@ -1137,27 +1139,60 @@ function buildObservedRiskSummary(
 ): RiskSummary {
   if (!observation) return baseRisk
 
-  const isThunder = observation.kind === 'thunder'
+  const isThunder = observation.thunder
+  const isHeavyRain = observation.rain === 'heavy'
+  if (!isThunder && !observation.rain) return baseRisk
+
+  const localLabel = formatLocalObservation(observation)
 
   return {
     ...baseRisk,
-    level: isThunder ? 'Critico' : 'Alto',
-    score: Math.max(baseRisk.score, isThunder ? 92 : 82),
-    tone: isThunder ? 'danger' : 'warning',
-    headline: isThunder ? 'Mejor evita salir' : 'Lluvia fuerte reportada',
+    level: isThunder ? 'Critico' : isHeavyRain ? 'Alto' : 'Medio',
+    score: Math.max(baseRisk.score, isThunder ? 92 : isHeavyRain ? 82 : 45),
+    tone: isThunder ? 'danger' : isHeavyRain ? 'warning' : 'watch',
+    headline: isThunder
+      ? 'Mejor evita salir'
+      : isHeavyRain
+        ? 'Lluvia fuerte reportada'
+        : 'Lluvia local reportada',
     message: isThunder
       ? 'Tu observacion local reporta truenos; toma prioridad sobre el pronostico horario.'
-      : 'Tu observacion local reporta lluvia fuerte; evita zonas bajas y espera si puedes.',
-    rainLabel: isThunder ? 'Tormenta reportada' : 'Lluvia fuerte reportada',
+      : isHeavyRain
+        ? 'Tu observacion local reporta lluvia fuerte; evita zonas bajas y espera si puedes.'
+        : 'Tu observacion local reporta lluvia ligera; usa la API como referencia y vigila cambios.',
+    rainLabel: isThunder
+      ? 'Tormenta reportada'
+      : isHeavyRain
+        ? 'Lluvia fuerte reportada'
+        : 'Lluvia ligera reportada',
     exitAdvice: isThunder
       ? 'No salgas si no es necesario.'
-      : 'Si no es urgente, espera a que baje la lluvia.',
+      : isHeavyRain
+        ? 'Si no es urgente, espera a que baje la lluvia.'
+        : 'Puedes salir con paraguas y precaucion.',
     thunderText: isThunder ? 'Truenos reportados ahora' : baseRisk.thunderText,
     thunderLikely: isThunder || baseRisk.thunderLikely,
     timingText:
       'Prioridad a observacion local: el modelo puede ir atrasado en tormentas.',
-    peakTimeText: 'Observacion local activa',
+    peakTimeText: localLabel,
   }
+}
+
+function formatLocalObservation(observation: LocalObservation | null) {
+  if (!observation) return ''
+
+  const parts: string[] = []
+  if (observation.rain === 'light') parts.push('lluvia ligera')
+  if (observation.rain === 'heavy') parts.push('lluvia fuerte')
+  if (observation.thunder) parts.push('truenos')
+
+  return parts.length > 0 ? parts.join(' + ') : 'sin reporte local'
+}
+
+function getLocalRainLabel(observation: LocalObservation | null) {
+  if (observation?.rain === 'heavy') return 'Lluvia fuerte reportada'
+  if (observation?.rain === 'light') return 'Lluvia ligera reportada'
+  return ''
 }
 
 function buildRainCellCollection(cells: RainCell[]): RainCellCollection {
@@ -1301,6 +1336,7 @@ function syncRadarLayer(activeMap: maplibregl.Map, radarFrame?: RadarFrame) {
     type: 'raster',
     tiles: [radarFrame.tileUrl],
     tileSize: 256,
+    maxzoom: 7,
     attribution: 'RainViewer',
   })
 
@@ -1692,6 +1728,8 @@ function App() {
   )
   const maxRainHour = Math.max(...upcoming12.map((hour) => hour.rain), rainNow)
   const currentWeatherText = describeWeatherCode(weather?.current?.weather_code)
+  const localRainLabel = getLocalRainLabel(activeObservation)
+  const apiRainDetail = `API: ${formatNumber(rainNow)} mm/h aprox. | ${currentWeatherText}`
   const isSafePlacesLoading =
     osmSafePlacesQuery.isLoading || backendSafePlacesQuery.isLoading
   const hasSafePlacesError =
@@ -1709,11 +1747,34 @@ function App() {
     return () => window.clearTimeout(timeout)
   }, [localObservation])
 
-  const reportLocalObservation = (kind: LocalObservation['kind']) => {
-    setLocalObservation({
-      kind,
-      label: kind === 'thunder' ? 'Truenos ahora' : 'Lluvia fuerte ahora',
+  const extendObservation = (
+    updater: (current: LocalObservation | null) => LocalObservation,
+  ) => {
+    setLocalObservation((current) => ({
+      ...updater(current),
       expiresAt: Date.now() + 1000 * 60 * 90,
+    }))
+  }
+
+  const reportRainObservation = (rain: LocalObservationRain) => {
+    extendObservation((current) => ({
+      rain,
+      thunder: current?.thunder ?? false,
+      expiresAt: Date.now(),
+    }))
+  }
+
+  const toggleThunderObservation = () => {
+    setLocalObservation((current) => {
+      const nextThunder = !(current?.thunder ?? false)
+
+      if (!nextThunder && !current?.rain) return null
+
+      return {
+        rain: current?.rain,
+        thunder: nextThunder,
+        expiresAt: Date.now() + 1000 * 60 * 90,
+      }
     })
   }
 
@@ -1944,8 +2005,8 @@ function App() {
             <MetricCard
               icon={<CloudRain size={20} aria-hidden="true" />}
               label="Lluvia ahora"
-              value={describeRain(rainNow)}
-              detail={`${formatNumber(rainNow)} mm/h aprox. | ${currentWeatherText}`}
+              value={localRainLabel || describeRain(rainNow)}
+              detail={localRainLabel ? `Reporte local activo | ${apiRainDetail}` : apiRainDetail}
             />
             <MetricCard
               icon={<Droplets size={20} aria-hidden="true" />}
@@ -1966,8 +2027,18 @@ function App() {
             <MetricCard
               icon={<CloudLightning size={20} aria-hidden="true" />}
               label="Truenos"
-              value={risk.thunderLikely ? 'Posibles' : 'No inmediatos'}
-              detail={risk.timingText}
+              value={
+                activeObservation?.thunder
+                  ? 'Reportados'
+                  : risk.thunderLikely
+                    ? 'Posibles'
+                    : 'No inmediatos'
+              }
+              detail={
+                activeObservation?.thunder
+                  ? `Reporte local activo | Modelo: ${baseRisk.timingText}`
+                  : risk.timingText
+              }
             />
             <MetricCard
               icon={<Clock3 size={20} aria-hidden="true" />}
@@ -2022,11 +2093,26 @@ function App() {
             <div className="observation-actions">
               <button
                 type="button"
-                onClick={() => reportLocalObservation('heavy-rain')}
+                className={activeObservation?.rain === 'light' ? 'active' : ''}
+                onClick={() => reportRainObservation('light')}
+                aria-pressed={activeObservation?.rain === 'light'}
+              >
+                Lluvia ligera
+              </button>
+              <button
+                type="button"
+                className={activeObservation?.rain === 'heavy' ? 'active' : ''}
+                onClick={() => reportRainObservation('heavy')}
+                aria-pressed={activeObservation?.rain === 'heavy'}
               >
                 Lluvia fuerte
               </button>
-              <button type="button" onClick={() => reportLocalObservation('thunder')}>
+              <button
+                type="button"
+                className={activeObservation?.thunder ? 'active danger-action' : 'danger-action'}
+                onClick={toggleThunderObservation}
+                aria-pressed={activeObservation?.thunder ?? false}
+              >
                 Truenos
               </button>
               <button type="button" onClick={() => setLocalObservation(null)}>
@@ -2035,8 +2121,8 @@ function App() {
             </div>
             {activeObservation && (
               <small>
-                Activo: {activeObservation.label}. AquaRisk dara prioridad a este
-                reporte por 90 min.
+                Activo: {formatLocalObservation(activeObservation)}. AquaRisk lo
+                muestra separado de la API durante 90 min.
               </small>
             )}
           </div>
