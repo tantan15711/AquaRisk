@@ -74,7 +74,7 @@ type FloodResponse = {
   }
 }
 
-type RiskLevel = 'Bajo' | 'Medio' | 'Alto' | 'Critico'
+type RiskLevel = 'Bajo' | 'Medio' | 'Alto' | 'Crítico'
 type Tone = 'safe' | 'watch' | 'warning' | 'danger'
 
 type HourForecast = {
@@ -324,7 +324,7 @@ async function showAquaNotification(
       await registration.showNotification(title, options)
       return true
     } catch (error) {
-      console.warn('No se pudo mostrar la notificacion con service worker.', error)
+      console.warn('No se pudo mostrar la notificación con service worker.', error)
     }
   }
 
@@ -332,7 +332,7 @@ async function showAquaNotification(
     new notificationApi(title, options)
     return true
   } catch (error) {
-    console.warn('No se pudo mostrar la notificacion en este navegador.', error)
+    console.warn('No se pudo mostrar la notificación en este navegador.', error)
     return false
   }
 }
@@ -370,7 +370,7 @@ async function fetchFlood(location: Coordinates): Promise<FloodResponse> {
   const response = await fetch(`https://flood-api.open-meteo.com/v1/flood?${params}`)
 
   if (!response.ok) {
-    throw new Error('No se pudo consultar el caudal del rio')
+    throw new Error('No se pudo consultar el caudal del río')
   }
 
   return response.json()
@@ -628,7 +628,7 @@ function buildBackendRiskZones(
 
 async function registerAlertSubscription(location: Coordinates) {
   if (!supabase) {
-    throw new Error('Supabase no esta configurado')
+    throw new Error('Supabase no está configurado')
   }
 
   const { error } = await supabase.from('alert_subscriptions').insert({
@@ -790,7 +790,7 @@ function describeRain(mmPerHour: number) {
 
 function describeWeatherCode(code?: number) {
   if (code === undefined) return 'Sin dato'
-  if (THUNDER_CODES.has(code)) return 'Tormenta electrica'
+  if (THUNDER_CODES.has(code)) return 'Tormenta eléctrica'
   if ([80, 81, 82].includes(code)) return 'Chubascos'
   if ([61, 63, 65].includes(code)) return 'Lluvia'
   if ([51, 53, 55].includes(code)) return 'Llovizna'
@@ -799,7 +799,7 @@ function describeWeatherCode(code?: number) {
   if (code === 2) return 'Nubes y claros'
   if (code === 3) return 'Nublado'
   if (code === 0) return 'Despejado'
-  return 'Condicion variable'
+  return 'Condición variable'
 }
 
 function getHourRisk(hour: HourForecast): HourRisk {
@@ -823,7 +823,7 @@ function getHourRisk(hour: HourForecast): HourRisk {
     return {
       label: 'Fuerte',
       tone: 'warning',
-      advice: 'Precaucion',
+      advice: 'Precaución',
     }
   }
 
@@ -899,7 +899,7 @@ function getToneFromScore(score: number, thunderLikely = false): Tone {
 }
 
 function getRiskLevel(score: number, thunderLikely = false): RiskLevel {
-  if (thunderLikely || score >= 78) return 'Critico'
+  if (thunderLikely || score >= 78) return 'Crítico'
   if (score >= 58) return 'Alto'
   if (score >= 32) return 'Medio'
   return 'Bajo'
@@ -911,7 +911,7 @@ function getDurationText(hours: HourForecast[]) {
   )
 
   if (rainyIndex === -1) {
-    return 'No se ve lluvia relevante en las proximas 12 h'
+    return 'No se ve lluvia relevante en las próximas 12 h'
   }
 
   let duration = 0
@@ -922,7 +922,7 @@ function getDurationText(hours: HourForecast[]) {
   }
 
   const startText = rainyIndex === 0 ? 'desde ahora' : `desde ${formatTime(hours[rainyIndex].time)}`
-  return `Podria durar ${duration} h ${startText}`
+  return `Podría durar ${duration} h ${startText}`
 }
 
 function getPeakHour(hours: HourForecast[]) {
@@ -940,8 +940,8 @@ function buildFloodSummary(flood?: FloodResponse): FloodSummary {
 
   if (times.length === 0 || discharge.length === 0) {
     return {
-      status: 'Sin dato de rio',
-      detail: 'No se encontro caudal cercano',
+      status: 'Sin dato de río',
+      detail: 'No se encontró caudal cercano',
       tone: 'watch',
       dischargeText: 'Sin dato',
     }
@@ -956,27 +956,27 @@ function buildFloodSummary(flood?: FloodResponse): FloodSummary {
 
   if (ratio >= 2.2 || nextMax >= 150) {
     return {
-      status: 'Rio muy elevado',
-      detail: `Modelo GloFAS: max. ${formatNumber(nextMax)} m3/s`,
+      status: 'Río muy elevado',
+      detail: `Modelo GloFAS: máx. ${formatNumber(nextMax)} m³/s`,
       tone: 'danger',
-      dischargeText: `${formatNumber(current)} m3/s`,
+      dischargeText: `${formatNumber(current)} m³/s`,
     }
   }
 
   if (ratio >= 1.5 || nextMax >= 75) {
     return {
       status: 'Caudal en vigilancia',
-      detail: `Modelo GloFAS: max. ${formatNumber(nextMax)} m3/s`,
+      detail: `Modelo GloFAS: máx. ${formatNumber(nextMax)} m³/s`,
       tone: 'warning',
-      dischargeText: `${formatNumber(current)} m3/s`,
+      dischargeText: `${formatNumber(current)} m³/s`,
     }
   }
 
   return {
-    status: 'Rio estable',
+    status: 'Río estable',
     detail: `Modelo GloFAS dentro de rango cercano`,
     tone: 'safe',
-    dischargeText: `${formatNumber(current)} m3/s`,
+    dischargeText: `${formatNumber(current)} m³/s`,
   }
 }
 
@@ -1031,27 +1031,27 @@ function buildRiskSummary(weather?: WeatherResponse): RiskSummary {
   const durationText = getDurationText(upcoming12)
   const peakTimeText =
     peakHour && peakHour.rain >= 0.2
-      ? `Pico cercano: ${formatTime(peakHour.time)} (ventana +-1 h)`
+      ? `Pico cercano: ${formatTime(peakHour.time)} (ventana ±1 h)`
       : 'Sin pico relevante'
   const timingText = recentHeavySignal
     ? 'Tormentas y chubascos pueden recorrerse 30-60 min.'
     : hasLaterRisk
-      ? 'Riesgo bajo ahora; vigilancia por lluvia mas tarde.'
+      ? 'Riesgo bajo ahora; vigilancia por lluvia más tarde.'
       : highProbabilityRain
         ? 'Hay lluvia activa o muy probable; usa esta hora como ventana aproximada.'
-        : 'Riesgo calculado para este momento y las proximas horas.'
+        : 'Riesgo calculado para este momento y las próximas horas.'
 
   if (hasLaterRisk) {
     return {
       level,
       score,
       tone,
-      headline: 'Ahora tranquilo; vigila mas tarde',
-      message: 'No se detecta lluvia fuerte en este momento, pero el pronostico marca lluvia mas adelante.',
+      headline: 'Ahora tranquilo; vigila más tarde',
+      message: 'No se detecta lluvia fuerte en este momento, pero el pronóstico marca lluvia más adelante.',
       rainLabel,
       exitAdvice: 'Puedes salir ahora; vuelve a revisar antes de la hora de lluvia.',
       durationText,
-      thunderText: thunderLater ? 'Truenos posibles mas tarde' : 'Sin truenos inmediatos',
+      thunderText: thunderLater ? 'Truenos posibles más tarde' : 'Sin truenos inmediatos',
       thunderLikely: thunderLater,
       timingText,
       peakTimeText,
@@ -1064,7 +1064,7 @@ function buildRiskSummary(weather?: WeatherResponse): RiskSummary {
       score,
       tone,
       headline: 'Mejor evita salir',
-      message: 'Hay senales de lluvia pesada o tormenta; prioriza rutas seguras.',
+      message: 'Hay señales de lluvia pesada o tormenta; prioriza rutas seguras.',
       rainLabel,
       exitAdvice: 'No recomendado salir si no es necesario.',
       durationText,
@@ -1082,7 +1082,7 @@ function buildRiskSummary(weather?: WeatherResponse): RiskSummary {
       tone,
       headline: highProbabilityRain
         ? 'Espera si puedes'
-        : 'Sal solo con precaucion',
+        : 'Sal solo con precaución',
       message: highProbabilityRain
         ? 'Hay lluvia activa o muy probable; el pico puede moverse dentro de esta hora.'
         : 'Puede haber lluvia fuerte, charcos grandes o baja visibilidad.',
@@ -1103,7 +1103,7 @@ function buildRiskSummary(weather?: WeatherResponse): RiskSummary {
       level,
       score,
       tone,
-      headline: 'Precaucion moderada',
+      headline: 'Precaución moderada',
       message: 'La lluvia no parece extrema, pero conviene monitorear cambios.',
       rainLabel,
       exitAdvice: activeRainSignal
@@ -1122,7 +1122,7 @@ function buildRiskSummary(weather?: WeatherResponse): RiskSummary {
     score,
     tone,
     headline: 'Puedes salir con normalidad',
-    message: 'No se detecta lluvia importante en las proximas horas.',
+    message: 'No se detecta lluvia importante en las próximas horas.',
     rainLabel,
     exitAdvice: 'Riesgo bajo por ahora.',
     durationText,
@@ -1147,7 +1147,7 @@ function buildObservedRiskSummary(
 
   return {
     ...baseRisk,
-    level: isThunder ? 'Critico' : isHeavyRain ? 'Alto' : 'Medio',
+    level: isThunder ? 'Crítico' : isHeavyRain ? 'Alto' : 'Medio',
     score: Math.max(baseRisk.score, isThunder ? 92 : isHeavyRain ? 82 : 45),
     tone: isThunder ? 'danger' : isHeavyRain ? 'warning' : 'watch',
     headline: isThunder
@@ -1156,10 +1156,10 @@ function buildObservedRiskSummary(
         ? 'Lluvia fuerte reportada'
         : 'Lluvia local reportada',
     message: isThunder
-      ? 'Tu observacion local reporta truenos; toma prioridad sobre el pronostico horario.'
+      ? 'Tu observación local reporta truenos; toma prioridad sobre el pronóstico horario.'
       : isHeavyRain
-        ? 'Tu observacion local reporta lluvia fuerte; evita zonas bajas y espera si puedes.'
-        : 'Tu observacion local reporta lluvia ligera; usa la API como referencia y vigila cambios.',
+        ? 'Tu observación local reporta lluvia fuerte; evita zonas bajas y espera si puedes.'
+        : 'Tu observación local reporta lluvia ligera; usa la API como referencia y vigila cambios.',
     rainLabel: isThunder
       ? 'Tormenta reportada'
       : isHeavyRain
@@ -1173,7 +1173,7 @@ function buildObservedRiskSummary(
     thunderText: isThunder ? 'Truenos reportados ahora' : baseRisk.thunderText,
     thunderLikely: isThunder || baseRisk.thunderLikely,
     timingText:
-      'Prioridad a observacion local: el modelo puede ir atrasado en tormentas.',
+      'Prioridad a observación local: el modelo puede ir atrasado en tormentas.',
     peakTimeText: localLabel,
   }
 }
@@ -1293,7 +1293,7 @@ function formatTemperature(value?: number) {
 }
 
 function formatDayLabel(value?: string) {
-  if (!value) return 'Sin dia'
+  if (!value) return 'Sin día'
 
   const date = new Date(value)
   const today = new Date()
@@ -1302,7 +1302,7 @@ function formatDayLabel(value?: string) {
   const key = (item: Date) => item.toLocaleDateString('es-MX')
 
   if (key(date) === key(today)) return 'Hoy'
-  if (key(date) === key(tomorrow)) return 'Manana'
+  if (key(date) === key(tomorrow)) return 'Mañana'
 
   return new Intl.DateTimeFormat('es-MX', {
     weekday: 'short',
@@ -1780,7 +1780,7 @@ function App() {
 
   const requestLocation = () => {
     if (!navigator.geolocation) {
-      setLocationMessage('Tu navegador no tiene geolocalizacion disponible.')
+    setLocationMessage('Tu navegador no tiene geolocalización disponible.')
       return
     }
 
@@ -1793,13 +1793,13 @@ function App() {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
           accuracy: position.coords.accuracy,
-          label: 'Mi ubicacion actual',
+          label: 'Mi ubicación actual',
         })
-        setLocationMessage('Ubicacion actualizada con datos reales del clima.')
+        setLocationMessage('Ubicación actualizada con datos reales del clima.')
         setIsLocating(false)
       },
       () => {
-        setLocationMessage('No se pudo obtener tu ubicacion.')
+        setLocationMessage('No se pudo obtener tu ubicación.')
         setIsLocating(false)
       },
       {
@@ -1841,11 +1841,11 @@ function App() {
           setAlertMessage('Alertas preventivas activadas para esta zona.')
         } catch {
           setAlertMessage(
-            'Alertas del navegador activadas; la revision en segundo plano queda pendiente.',
+            'Alertas del navegador activadas; la revisión en segundo plano queda pendiente.',
           )
         }
       } else {
-        setAlertMessage('Alertas del navegador activadas en esta version local.')
+        setAlertMessage('Alertas del navegador activadas en esta versión local.')
       }
 
       if (!wasShown) {
@@ -1902,14 +1902,14 @@ function App() {
           </div>
           <div>
             <span>AquaRisk</span>
-            <h1>Monitoreo de lluvia e inundacion</h1>
+            <h1>Monitoreo de lluvia e inundación</h1>
           </div>
         </div>
 
         <div className="header-actions">
           <button type="button" onClick={requestLocation} disabled={isLocating}>
             <LocateFixed size={18} aria-hidden="true" />
-            {isLocating ? 'Ubicando' : 'Mi ubicacion'}
+            {isLocating ? 'Ubicando' : 'Mi ubicación'}
           </button>
           <button type="button" onClick={requestNotifications}>
             <Bell size={18} aria-hidden="true" />
@@ -1921,7 +1921,7 @@ function App() {
       <main className="dashboard">
         <section className={`risk-hero ${risk.tone}`} aria-live="polite">
           <div>
-            <span className="section-kicker">Decision rapida</span>
+            <span className="section-kicker">Decisión rápida</span>
             <strong>{risk.headline}</strong>
             <p>{risk.message}</p>
             <div className="risk-tags">
@@ -1987,8 +1987,8 @@ function App() {
             </span>
           </div>
           <p className="map-note">
-            Los circulos se calculan con Open-Meteo cerca de tu ubicacion. La
-            capa de radar usa RainViewer cuando esta disponible. Los puntos
+            Los círculos se calculan con Open-Meteo cerca de tu ubicación. La
+            capa de radar usa RainViewer cuando está disponible. Los puntos
             seguros vienen de OpenStreetMap y deben confirmarse con autoridades.
           </p>
         </section>
@@ -2012,7 +2012,7 @@ function App() {
               icon={<Droplets size={20} aria-hidden="true" />}
               label="Acumulado 6 h"
               value={`${formatNumber(rainNext6)} mm`}
-              detail={`${probability}% probabilidad maxima`}
+              detail={`${probability}% probabilidad máxima`}
             />
             <MetricCard
               icon={<CloudRain size={20} aria-hidden="true" />}
@@ -2042,7 +2042,7 @@ function App() {
             />
             <MetricCard
               icon={<Clock3 size={20} aria-hidden="true" />}
-              label="Duracion"
+              label="Duración"
               value={risk.durationText}
               detail={`Pico esperado: ${formatNumber(maxRainHour)} mm/h`}
             />
@@ -2064,7 +2064,7 @@ function App() {
               value={
                 location.accuracy
                   ? `${Math.round(location.accuracy)} m`
-                  : 'Ubicacion base'
+                  : 'Ubicación base'
               }
               detail={`${formatNumber(location.latitude, 3)}, ${formatNumber(
                 location.longitude,
@@ -2077,17 +2077,17 @@ function App() {
             <Info size={17} aria-hidden="true" />
             <p>
               1 mm de lluvia significa 1 litro de agua por metro cuadrado. Por
-              eso AquaRisk tambien lo traduce a ligera, moderada o fuerte.
+              eso AquaRisk también lo traduce a ligera, moderada o fuerte.
             </p>
           </div>
 
           <div className="observation-box">
             <div>
-              <span className="section-kicker">Observacion local</span>
+              <span className="section-kicker">Observación local</span>
               <h3>Lo que ves ahora</h3>
               <p>
-                Si la tormenta ya esta encima y el modelo va atrasado, marca una
-                senal temporal para priorizar tu observacion.
+                Si la tormenta ya está encima y el modelo va atrasado, marca una
+                señal temporal para priorizar tu observación.
               </p>
             </div>
             <div className="observation-actions">
@@ -2135,7 +2135,7 @@ function App() {
           )}
           {floodQuery.isError && (
             <p className="status-note error-note">
-              No se pudo consultar caudal de rio. La alerta queda solo con lluvia.
+              No se pudo consultar caudal de río. La alerta queda solo con lluvia.
             </p>
           )}
         </aside>
@@ -2145,8 +2145,8 @@ function App() {
         <div className="timeline-panel">
           <div className="panel-heading">
             <div>
-              <span className="section-kicker">Pronostico por hora</span>
-              <h2 className="visually-hidden">Pronostico por hora</h2>
+              <span className="section-kicker">Pronóstico por hora</span>
+              <h2 className="visually-hidden">Pronóstico por hora</h2>
             </div>
             <div className="forecast-chip">
               <Umbrella size={16} aria-hidden="true" />
@@ -2159,7 +2159,7 @@ function App() {
             Toma cada hora como una ventana probable, no como un minuto exacto.
           </p>
 
-          <div className="hourly-table" aria-label="Pronostico de 24 horas">
+          <div className="hourly-table" aria-label="Pronóstico de 24 horas">
             {nextHours.length > 0 ? (
               nextHours.map((hour) => {
                 const hourRisk = getHourRisk(hour)
@@ -2222,7 +2222,7 @@ function App() {
                 )
               })
             ) : (
-              <p className="empty-state">El pronostico aparecera al cargar datos.</p>
+              <p className="empty-state">El pronóstico aparecerá al cargar datos.</p>
             )}
           </div>
         </div>
@@ -2238,7 +2238,7 @@ function App() {
           <ol className="action-list">
             <li>{risk.exitAdvice}</li>
             <li>Evita pasos a desnivel, arroyos, canales y calles bajas.</li>
-            <li>Actualiza tu ubicacion antes de decidir salir.</li>
+            <li>Actualiza tu ubicación antes de decidir salir.</li>
             <li>
               Si el riesgo sube, revisa los puntos de apoyo cercanos y espera
               indicaciones oficiales.
@@ -2258,8 +2258,8 @@ function App() {
           </div>
           <p>
             AquaRisk puede avisar en este dispositivo cuando detecte lluvia fuerte,
-            tormenta o caudal elevado. En esta version funciona mientras la app
-            esta activa; con Supabase se puede programar en segundo plano sin login.
+            tormenta o caudal elevado. En esta versión funciona mientras la app
+            está activa; con Supabase se puede programar en segundo plano sin login.
           </p>
           <button type="button" className="secondary-button" onClick={requestNotifications}>
             Activar alertas preventivas
@@ -2290,7 +2290,7 @@ function App() {
             </div>
           ) : (
             <p className="empty-state">
-              No hay zonas criticas cercanas con el pronostico actual.
+              No hay zonas críticas cercanas con el pronóstico actual.
             </p>
           )}
         </article>
