@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -266,11 +267,50 @@ const DEFAULT_LOCATION: Coordinates = {
   label: 'Centro de Tapachula, Chiapas',
 }
 
+const LOCATION_STORAGE_KEY = 'aquarisk:last-location'
+
+function readStoredLocation(): Coordinates | null {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const rawLocation = window.localStorage.getItem(LOCATION_STORAGE_KEY)
+    if (!rawLocation) return null
+
+    const parsedLocation = JSON.parse(rawLocation) as Partial<Coordinates>
+    const latitude = Number(parsedLocation.latitude)
+    const longitude = Number(parsedLocation.longitude)
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
+
+    return {
+      latitude,
+      longitude,
+      accuracy: parsedLocation.accuracy,
+      label: parsedLocation.label || 'Mi ubicación actual',
+    }
+  } catch {
+    return null
+  }
+}
+
+function saveStoredLocation(location: Coordinates) {
+  if (typeof window === 'undefined') return
+
+  try {
+    window.localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(location))
+  } catch {
+    // If storage is unavailable, AquaRisk can still work with the live state.
+  }
+}
+
 const THUNDER_CODES = new Set([95, 96, 99])
 
 const useAquaStore = create<AquaStore>((set) => ({
-  location: DEFAULT_LOCATION,
-  setLocation: (location) => set({ location }),
+  location: readStoredLocation() ?? DEFAULT_LOCATION,
+  setLocation: (location) => {
+    saveStoredLocation(location)
+    set({ location })
+  },
   notificationPermission: getNotificationPermission(),
   setNotificationPermission: (notificationPermission) =>
     set({ notificationPermission }),
@@ -1597,6 +1637,7 @@ function App() {
   const [localObservation, setLocalObservation] =
     useState<LocalObservation | null>(null)
   const lastAutoAlertRef = useRef('')
+  const hasAutoLocatedRef = useRef(false)
 
   const weatherQuery = useQuery({
     queryKey: ['weather', location.latitude.toFixed(4), location.longitude.toFixed(4)],
@@ -1778,14 +1819,16 @@ function App() {
     })
   }
 
-  const requestLocation = () => {
+  const requestLocation = useCallback(({ silent = false }: { silent?: boolean } = {}) => {
     if (!navigator.geolocation) {
-    setLocationMessage('Tu navegador no tiene geolocalización disponible.')
+      if (!silent) setLocationMessage('Tu navegador no tiene geolocalización disponible.')
       return
     }
 
-    setIsLocating(true)
-    setLocationMessage('')
+    if (!silent) {
+      setIsLocating(true)
+      setLocationMessage('')
+    }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -1795,20 +1838,58 @@ function App() {
           accuracy: position.coords.accuracy,
           label: 'Mi ubicación actual',
         })
-        setLocationMessage('Ubicación actualizada con datos reales del clima.')
+        if (!silent) {
+          setLocationMessage('Ubicación actualizada con datos reales del clima.')
+        }
         setIsLocating(false)
       },
       () => {
-        setLocationMessage('No se pudo obtener tu ubicación.')
+        if (!silent) setLocationMessage('No se pudo obtener tu ubicación.')
         setIsLocating(false)
       },
       {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 1000 * 60 * 2,
+        maximumAge: 1000 * 60 * 5,
       },
     )
-  }
+  }, [setLocation])
+
+  useEffect(() => {
+    if (hasAutoLocatedRef.current || !navigator.geolocation) return
+
+    hasAutoLocatedRef.current = true
+
+    const refreshCurrentPosition = () => requestLocation({ silent: true })
+    const storedLocation = readStoredLocation()
+
+    if ('permissions' in navigator && navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: 'geolocation' as PermissionName })
+        .then((permissionStatus) => {
+          if (permissionStatus.state === 'granted') {
+            refreshCurrentPosition()
+            return
+          }
+
+          if (!storedLocation && permissionStatus.state === 'prompt') {
+            requestLocation()
+          }
+        })
+        .catch(() => {
+          if (storedLocation) refreshCurrentPosition()
+        })
+
+      return
+    }
+
+    if (storedLocation) {
+      refreshCurrentPosition()
+      return
+    }
+
+    requestLocation()
+  }, [requestLocation])
 
   const requestNotifications = async () => {
     const notificationApi = getNotificationApi()
@@ -1907,7 +1988,7 @@ function App() {
         </div>
 
         <div className="header-actions">
-          <button type="button" onClick={requestLocation} disabled={isLocating}>
+          <button type="button" onClick={() => requestLocation()} disabled={isLocating}>
             <LocateFixed size={18} aria-hidden="true" />
             {isLocating ? 'Ubicando' : 'Mi ubicación'}
           </button>
