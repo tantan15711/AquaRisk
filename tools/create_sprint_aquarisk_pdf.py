@@ -2,204 +2,157 @@ from pathlib import Path
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from reportlab.lib.pagesizes import letter, landscape
+from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import (
-    PageBreak,
-    Paragraph,
-    SimpleDocTemplate,
-    Spacer,
-    Table,
-    TableStyle,
-)
+from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "docs"
 PDF_PATH = OUT / "Sprint_AquaRisk_6_semanas.pdf"
 
-PURPLE = colors.HexColor("#5B3C88")
-PURPLE_DARK = colors.HexColor("#32215A")
-TEAL = colors.HexColor("#10A7B8")
-GREEN = colors.HexColor("#4CB963")
-LAVENDER = colors.HexColor("#EFE8FA")
-MINT = colors.HexColor("#E8F8F1")
-BLUE_SOFT = colors.HexColor("#EAF7FB")
-GRAY = colors.HexColor("#F4F6F8")
-INK = colors.HexColor("#182233")
-YELLOW = colors.HexColor("#FFF3C4")
-RED_SOFT = colors.HexColor("#FBE2E2")
-WHITE = colors.white
-
 FONT_REGULAR = "ArialAqua"
 FONT_BOLD = "ArialAqua-Bold"
 pdfmetrics.registerFont(TTFont(FONT_REGULAR, r"C:\Windows\Fonts\arial.ttf"))
 pdfmetrics.registerFont(TTFont(FONT_BOLD, r"C:\Windows\Fonts\arialbd.ttf"))
 
+BLACK = colors.HexColor("#111111")
+GRAY_1 = colors.HexColor("#F2F2F2")
+GRAY_2 = colors.HexColor("#D9D9D9")
+GRAY_3 = colors.HexColor("#E6E6E6")
+GRID = colors.HexColor("#BFBFBF")
+TEXT = colors.HexColor("#1F2933")
+BAR_REQ = colors.HexColor("#A8DADC")
+BAR_DESIGN = colors.HexColor("#C7E9B0")
+BAR_DB = colors.HexColor("#D8C8F0")
+BAR_DEV = colors.HexColor("#9FD3C7")
+BAR_INT = colors.HexColor("#B8C0E0")
+BAR_TEST = colors.HexColor("#F8DFA6")
+BAR_FIX = colors.HexColor("#F2B5B5")
+BAR_CLOSE = colors.HexColor("#CDE7C9")
 
 styles = getSampleStyleSheet()
 styles.add(
     ParagraphStyle(
-        name="AquaTitle",
+        name="TitleFormal",
         fontName=FONT_BOLD,
-        fontSize=30,
-        leading=34,
-        textColor=PURPLE_DARK,
-        spaceAfter=6,
+        fontSize=15,
+        leading=18,
+        textColor=BLACK,
+        alignment=TA_CENTER,
+        spaceAfter=10,
     )
 )
 styles.add(
     ParagraphStyle(
-        name="AquaSubtitle",
-        fontName=FONT_REGULAR,
-        fontSize=16,
-        leading=20,
-        textColor=TEAL,
-        spaceAfter=12,
-    )
-)
-styles.add(
-    ParagraphStyle(
-        name="H1Aqua",
-        fontName=FONT_BOLD,
-        fontSize=16,
-        leading=20,
-        textColor=PURPLE_DARK,
-        spaceBefore=4,
-        spaceAfter=8,
-    )
-)
-styles.add(
-    ParagraphStyle(
-        name="H2Aqua",
+        name="H1Formal",
         fontName=FONT_BOLD,
         fontSize=12,
         leading=15,
-        textColor=PURPLE,
-        spaceBefore=8,
+        textColor=BLACK,
+        spaceBefore=10,
         spaceAfter=5,
     )
 )
 styles.add(
     ParagraphStyle(
-        name="BodyAqua",
+        name="H2Formal",
+        fontName=FONT_BOLD,
+        fontSize=10.5,
+        leading=13,
+        textColor=BLACK,
+        spaceBefore=8,
+        spaceAfter=4,
+    )
+)
+styles.add(
+    ParagraphStyle(
+        name="BodyFormal",
         fontName=FONT_REGULAR,
-        fontSize=9.5,
-        leading=12.5,
-        textColor=INK,
-        spaceAfter=6,
+        fontSize=9.2,
+        leading=12.2,
+        textColor=TEXT,
         alignment=TA_LEFT,
+        spaceAfter=5,
     )
 )
 styles.add(
     ParagraphStyle(
-        name="SmallAqua",
+        name="SmallFormal",
         fontName=FONT_REGULAR,
-        fontSize=7.6,
-        leading=9.3,
-        textColor=INK,
-        spaceAfter=2,
+        fontSize=6.7,
+        leading=8.2,
+        textColor=TEXT,
     )
 )
 styles.add(
     ParagraphStyle(
-        name="SmallBold",
-        parent=styles["SmallAqua"],
-        fontName=FONT_BOLD,
+        name="SmallCenter",
+        parent=styles["SmallFormal"],
+        alignment=TA_CENTER,
     )
 )
 styles.add(
     ParagraphStyle(
-        name="SmallWhite",
-        parent=styles["SmallAqua"],
+        name="HeadCell",
         fontName=FONT_BOLD,
-        textColor=WHITE,
-    )
-)
-styles.add(
-    ParagraphStyle(
-        name="TableHead",
-        fontName=FONT_BOLD,
-        fontSize=7.5,
-        leading=8.6,
-        textColor=WHITE,
+        fontSize=6.7,
+        leading=8,
+        textColor=BLACK,
         alignment=TA_CENTER,
     )
 )
 
 
-def p(text, style="BodyAqua"):
-    return Paragraph(text, styles[style])
+def p(text, style="BodyFormal"):
+    return Paragraph(str(text).replace("\n", "<br/>"), styles[style])
 
 
 def bullet(text):
-    return Paragraph(f"• {text}", styles["BodyAqua"])
+    return p(f"• {text}", "BodyFormal")
 
 
-def callout(title, text, fill=BLUE_SOFT):
-    table = Table(
-        [[p(f"<b>{title}</b><br/>{text}", "BodyAqua")]],
-        colWidths=[9.75 * inch],
-        hAlign="LEFT",
-    )
-    table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, -1), fill),
-                ("BOX", (0, 0), (-1, -1), 0.8, colors.HexColor("#BFDDE9")),
-                ("LEFTPADDING", (0, 0), (-1, -1), 12),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 12),
-                ("TOPPADDING", (0, 0), (-1, -1), 8),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-            ]
-        )
-    )
-    return table
-
-
-def styled_table(data, widths, header=True, font_size=7.7):
-    prepared = []
+def table(data, widths, header=True, center_cols=None):
+    rows = []
+    center_cols = set(center_cols or [])
     for row_index, row in enumerate(data):
-        prepared_row = []
-        for item in row:
-            if hasattr(item, "wrapOn"):
-                prepared_row.append(item)
-                continue
-            style = "TableHead" if row_index == 0 and header else "SmallAqua"
-            prepared_row.append(p(str(item).replace("\n", "<br/>"), style))
-        prepared.append(prepared_row)
+        out = []
+        for col_index, value in enumerate(row):
+            if hasattr(value, "wrapOn"):
+                out.append(value)
+            else:
+                style = "HeadCell" if header and row_index == 0 else (
+                    "SmallCenter" if col_index in center_cols else "SmallFormal"
+                )
+                out.append(p(value, style))
+        rows.append(out)
 
-    table = Table(prepared, colWidths=widths, repeatRows=1 if header else 0, hAlign="LEFT")
+    t = Table(rows, colWidths=widths, repeatRows=1 if header else 0, hAlign="LEFT")
     commands = [
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D8DDE6")),
+        ("GRID", (0, 0), (-1, -1), 0.45, GRID),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 5),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-        ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
     ]
     if header:
-        commands.append(("BACKGROUND", (0, 0), (-1, 0), PURPLE))
-        commands.append(("TEXTCOLOR", (0, 0), (-1, 0), WHITE))
-    for row_index in range(1 if header else 0, len(data)):
-        if row_index % 2 == 0:
-            commands.append(("BACKGROUND", (0, row_index), (-1, row_index), colors.HexColor("#FBFCFE")))
-    table.setStyle(TableStyle(commands))
-    return table
+        commands.append(("BACKGROUND", (0, 0), (-1, 0), GRAY_2))
+    for i in range(1 if header else 0, len(rows)):
+        if i % 2 == 0:
+            commands.append(("BACKGROUND", (0, i), (-1, i), colors.HexColor("#FAFAFA")))
+    t.setStyle(TableStyle(commands))
+    return t
 
 
-def page_footer(canvas, doc):
+def footer(canvas, doc):
     canvas.saveState()
-    canvas.setFont(FONT_REGULAR, 7.5)
-    canvas.setFillColor(colors.HexColor("#6B7280"))
-    canvas.drawCentredString(
-        landscape(letter)[0] / 2,
-        0.28 * inch,
-        f"AquaRisk | Cronograma de 6 semanas | Página {doc.page}",
-    )
+    canvas.setFont(FONT_REGULAR, 7)
+    canvas.setFillColor(colors.HexColor("#666666"))
+    canvas.drawCentredString(letter[0] / 2, 0.35 * inch, f"AquaRisk - Plan de trabajo | Página {doc.page}")
     canvas.restoreState()
 
 
@@ -207,230 +160,191 @@ def build_pdf():
     OUT.mkdir(exist_ok=True)
     doc = SimpleDocTemplate(
         str(PDF_PATH),
-        pagesize=landscape(letter),
-        rightMargin=0.45 * inch,
-        leftMargin=0.45 * inch,
-        topMargin=0.45 * inch,
-        bottomMargin=0.45 * inch,
+        pagesize=letter,
+        leftMargin=0.72 * inch,
+        rightMargin=0.72 * inch,
+        topMargin=0.65 * inch,
+        bottomMargin=0.65 * inch,
     )
     story = []
 
-    story.append(Paragraph("Sprint Contra el Tiempo", styles["AquaTitle"]))
-    story.append(
-        Paragraph("Plan de trabajo para entregar AquaRisk en 6 semanas", styles["AquaSubtitle"])
-    )
-    story.append(
-        callout(
-            "Enfoque del equipo",
-            "AquaRisk se plantea como una aplicación web responsiva para monitorear lluvia, ubicación del usuario, zonas de riesgo y alertas preventivas. El reto no es solo programar rápido, sino ordenar dependencias para llegar a una entrega demostrable sin sacrificar pruebas.",
-            MINT,
-        )
-    )
-    story.append(Spacer(1, 10))
-    meta = [
-        [p("Proyecto", "SmallWhite"), "AquaRisk - monitoreo de lluvia e inundación"],
-        [p("Periodo", "SmallWhite"), "6 semanas: 20 de julio al 28 de agosto de 2026"],
-        [p("Metodología", "SmallWhite"), "Sprint con entregas parciales, revisión semanal y control de alcance"],
-        [p("Producto final", "SmallWhite"), "Aplicación funcional, cronograma, pruebas, capacitación y entrega documentada"],
-        [p("Líder del equipo", "SmallWhite"), "Osmar Enrique Ramos Reyes"],
-    ]
-    meta_table = styled_table(meta, [1.9 * inch, 7.85 * inch], header=False)
-    meta_table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (0, -1), PURPLE),
-                ("TEXTCOLOR", (0, 0), (0, -1), WHITE),
-                ("FONTNAME", (0, 0), (0, -1), FONT_BOLD),
-            ]
-        )
-    )
-    story.append(meta_table)
-    story.append(PageBreak())
-
-    story.append(p("1. Organización del proyecto", "H1Aqua"))
+    story.append(p("Sprint Contra el Tiempo: Plan de trabajo para AquaRisk", "TitleFormal"))
+    story.append(p("Situación del proyecto", "H1Formal"))
     story.append(
         p(
-            "Para no perder tiempo en retrabajo, el equipo decidió ordenar el proyecto desde lo que desbloquea a los demás: primero entender qué debe hacer AquaRisk, después diseñar la experiencia y la base de datos, y de ahí avanzar en paralelo con frontend y backend. Las pruebas se preparan desde antes y se ejecutan con más fuerza cuando la integración ya está estable."
+            "La empresa de desarrollo asumió el compromiso de entregar AquaRisk en un plazo máximo de seis semanas. Para efectos del ejercicio, AquaRisk se trabaja como una aplicación móvil/web enfocada en el monitoreo de lluvia, riesgo de inundación, ubicación del usuario y alertas preventivas. Aunque el alcance funcional no es enorme, sí requiere una planeación cuidadosa porque intervienen diseño de interfaz, base de datos, servicios externos, permisos de ubicación, pruebas en dispositivos y capacitación al cliente."
         )
     )
+    story.append(
+        p(
+            "El principal reto del equipo es evitar que las actividades se ejecuten de manera aislada. Si backend, frontend, diseño y pruebas avanzan sin coordinación, el proyecto puede llegar a la última semana con pantallas incompletas, errores de integración o funciones difíciles de explicar al usuario. Por eso se propone una secuencia lógica con tareas paralelas, dependencias claras y revisiones semanales."
+        )
+    )
+    story.append(p("Equipo de trabajo", "H2Formal"))
     team = [
-        ["Integrante", "Rol principal", "Responsabilidad dentro del sprint"],
-        ["Osmar Enrique Ramos Reyes", "Líder de proyecto", "Coordina prioridades, seguimiento semanal, dependencias y comunicación con el cliente."],
-        ["Alessandro Bravo Flores", "Frontend", "Construcción de vistas, conexión con mapas, estados de lluvia y flujo móvil."],
-        ["Valeria Montes García", "Frontend", "Apoyo en componentes responsivos, permisos de ubicación y visualización del pronóstico."],
-        ["Ángel Eduardo Pineda Rodas", "Backend", "Estructura de datos, consumo de servicios, lógica de alertas y conexión con Supabase."],
-        ["Diego Iván Morales Cruz", "Backend", "Apoyo en consultas, seguridad de datos, endpoints y revisión de integración."],
-        ["Brian Bezares Ávalos", "Diseño UX/UI", "Diseño de interfaz, lectura clara de riesgo, paleta visual y experiencia del usuario."],
-        ["Ana Paula Orellana López", "Tester", "Casos de prueba, validación móvil, errores, permisos y revisión final antes de entrega."],
+        ["Rol solicitado", "Integrante", "Responsabilidad principal"],
+        ["Líder de Proyecto", "Osmar Enrique Ramos Reyes", "Coordinar alcance, tiempos, prioridades, seguimiento y comunicación con el cliente."],
+        ["Programador Frontend", "Alessandro Bravo Flores", "Implementar pantallas principales, mapa, lectura de riesgo y flujo responsivo."],
+        ["Programadora Frontend", "Valeria Montes García", "Apoyar componentes visuales, estados de la interfaz y validación en dispositivos."],
+        ["Programador Backend", "Ángel Eduardo Pineda Rodas", "Diseñar servicios, lógica de datos, alertas y conexión con Supabase."],
+        ["Programador Backend", "Diego Iván Morales Cruz", "Apoyar estructura de base de datos, consultas, seguridad y pruebas de servicios."],
+        ["Diseñador UX/UI", "Brian Bezares Ávalos", "Definir experiencia, navegación, jerarquía visual y claridad de la información."],
+        ["Tester", "Ana Paula Orellana López", "Diseñar y ejecutar pruebas funcionales, móviles, de permisos y de entrega final."],
     ]
-    story.append(styled_table(team, [2.2 * inch, 1.5 * inch, 6.05 * inch]))
-    story.append(Spacer(1, 8))
-    story.append(p("Orden lógico, paralelismo y dependencias", "H2Aqua"))
-    order = [
-        ["#", "Actividad", "Duración", "Responsable", "Depende de", "Puede avanzar al mismo tiempo que"],
-        ["1", "Levantamiento de requisitos", "3 días", "Osmar + equipo", "Inicio", "Preparación de tablero y criterios de aceptación"],
-        ["2", "Diseño UX/UI", "5 días", "Brian", "Requisitos base", "Diseño de base de datos y contratos de API"],
-        ["3", "Diseño de base de datos", "2 días", "Ángel + Diego", "Requisitos base", "UX/UI y definición técnica del backend"],
-        ["4", "Desarrollo backend", "10 días", "Ángel + Diego", "Base de datos aprobada", "Frontend con datos de prueba"],
-        ["5", "Desarrollo frontend", "9 días", "Alessandro + Valeria", "UX/UI aprobado", "Backend y casos de prueba iniciales"],
-        ["6", "Integración", "3 días", "Osmar + front + back", "Módulos principales listos", "Pruebas exploratorias"],
-        ["7", "Pruebas", "4 días", "Ana Paula", "Integración funcional", "Correcciones menores y documentación"],
-        ["8", "Corrección de errores", "3 días", "Todo el equipo", "Reporte de pruebas", "Capacitación preliminar"],
-        ["9", "Capacitación al cliente", "2 días", "Osmar + Ana Paula", "Versión estable", "Cierre, manual breve y entrega final"],
-    ]
-    story.append(styled_table(order, [0.32 * inch, 1.75 * inch, 0.65 * inch, 1.38 * inch, 1.55 * inch, 4.1 * inch]))
-    story.append(Spacer(1, 8))
-    story.append(
-        callout(
-            "Ruta crítica",
-            "La cadena que más cuida el equipo es: requisitos -> base de datos -> backend -> integración -> pruebas -> corrección -> capacitación. Frontend avanza en paralelo, pero se vuelve crítico si las pantallas principales no están listas para integrar en la semana 4.",
-            BLUE_SOFT,
-        )
-    )
-    story.append(PageBreak())
+    story.append(table(team, [1.3 * inch, 1.55 * inch, 3.2 * inch]))
 
-    story.append(p("2. Priorización con Matriz de Eisenhower", "H1Aqua"))
+    story.append(p("1. Organización de actividades", "H1Formal"))
     story.append(
         p(
-            "La matriz se usó para separar lo que realmente protege la fecha de entrega de lo que solo mejora la presentación. En un sprint de 6 semanas, casi todo parece urgente; por eso se prioriza lo que desbloquea trabajo, reduce riesgo o permite probar con usuarios antes del cierre."
+            "El orden se definió considerando qué actividades desbloquean a las demás. El levantamiento de requisitos va primero porque establece qué se entregará y qué queda fuera. Después se trabajan en paralelo el diseño UX/UI y el diseño de base de datos, ya que ambos parten de los requisitos pero atienden frentes distintos. Con esas bases, backend y frontend pueden avanzar al mismo tiempo; posteriormente se realiza la integración, pruebas, corrección de errores y capacitación."
+        )
+    )
+    activities = [
+        ["Orden", "Actividad", "Duración", "Responsable", "Dependencia directa"],
+        ["1", "Levantamiento de requisitos", "3 días", "Osmar + equipo", "Inicio del proyecto"],
+        ["2", "Diseño UX/UI", "5 días", "Brian", "Requisitos principales definidos"],
+        ["3", "Diseño de base de datos", "2 días", "Ángel + Diego", "Requisitos principales definidos"],
+        ["4", "Desarrollo backend", "10 días", "Ángel + Diego", "Diseño de base de datos"],
+        ["5", "Desarrollo frontend", "9 días", "Alessandro + Valeria", "Diseño UX/UI y criterios de navegación"],
+        ["6", "Integración", "3 días", "Osmar + frontend + backend", "Módulos principales de backend y frontend"],
+        ["7", "Pruebas", "4 días", "Ana Paula", "Integración funcional"],
+        ["8", "Corrección de errores", "3 días", "Todo el equipo", "Resultados de pruebas"],
+        ["9", "Capacitación al cliente", "2 días", "Osmar + Ana Paula", "Versión estable"],
+    ]
+    story.append(table(activities, [0.45 * inch, 1.45 * inch, 0.62 * inch, 1.45 * inch, 2.08 * inch], center_cols={0, 2}))
+
+    story.append(p("Actividades que pueden realizarse al mismo tiempo", "H2Formal"))
+    for item in [
+        "Diseño UX/UI y diseño de base de datos pueden avanzar en paralelo después del levantamiento de requisitos.",
+        "Desarrollo frontend y desarrollo backend se ejecutan al mismo tiempo, siempre que exista un acuerdo mínimo sobre datos, pantallas y flujos.",
+        "Los casos de prueba pueden prepararse durante el desarrollo, aunque su ejecución formal dependa de la integración.",
+        "La capacitación puede preparar su material desde la semana 5, pero debe cerrarse hasta tener una versión estable.",
+    ]:
+        story.append(bullet(item))
+    story.append(p("Dependencias clave", "H2Formal"))
+    story.append(
+        p(
+            "La dependencia más delicada es la integración entre backend y frontend. Si los servicios no entregan datos en el formato acordado, la interfaz puede funcionar de manera incompleta. Por eso el equipo debe definir desde temprano qué datos usará AquaRisk para clima, mapa, zonas de riesgo, ubicación y alertas."
+        )
+    )
+
+    story.append(p("2. Priorización con Matriz de Eisenhower", "H1Formal"))
+    story.append(
+        p(
+            "La matriz se aplicó para decidir qué actividades deben recibir atención inmediata y cuáles se pueden controlar sin distraer al equipo. En un proyecto de seis semanas, casi todo parece urgente; sin embargo, no todo tiene el mismo impacto sobre la entrega. La prioridad se asignó con base en tres criterios: si la actividad desbloquea otra, si afecta la calidad del producto y si puede poner en riesgo la fecha final."
         )
     )
     matrix = [
         ["", "Urgente", "No urgente"],
         [
             "Importante",
-            "<b>Actividades:</b> levantamiento de requisitos, diseño de base de datos, desarrollo backend, desarrollo frontend, integración, pruebas y corrección de errores.<br/><br/><b>Justificación:</b> si cualquiera de estas actividades falla, el producto no se puede entregar o queda sin validar.",
-            "<b>Actividades:</b> diseño UX/UI, documentación breve, capacitación al cliente y criterios de aceptación.<br/><br/><b>Justificación:</b> no siempre bloquean el primer día, pero elevan la calidad y ayudan a que el cliente use AquaRisk sin depender del equipo.",
+            "Levantamiento de requisitos, diseño de base de datos, desarrollo backend, desarrollo frontend, integración, pruebas y corrección de errores.",
+            "Diseño UX/UI, preparación de capacitación, documentación breve y criterios de aceptación.",
         ],
         [
             "No importante",
-            "<b>Actividades:</b> ajustes menores de presentación, capturas y material de apoyo para exposición.<br/><br/><b>Justificación:</b> tienen fecha cercana, pero no deben quitar tiempo al funcionamiento principal.",
-            "<b>Actividades:</b> historial avanzado, perfiles complejos, reportes extensos o mapas decorativos.<br/><br/><b>Justificación:</b> pueden ser buenas ideas para otra versión, pero meterlas ahora pondría en riesgo la entrega.",
+            "Ajustes visuales menores, capturas para exposición y detalles que no afectan el funcionamiento principal.",
+            "Funciones fuera de alcance: historial avanzado, perfiles complejos, reportes extensos y mejoras no solicitadas para esta entrega.",
         ],
     ]
-    matrix_table = styled_table(matrix, [1.15 * inch, 4.3 * inch, 4.3 * inch])
-    matrix_table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (1, 1), (1, 1), MINT),
-                ("BACKGROUND", (2, 1), (2, 1), LAVENDER),
-                ("BACKGROUND", (1, 2), (1, 2), YELLOW),
-                ("BACKGROUND", (2, 2), (2, 2), GRAY),
-            ]
-        )
-    )
-    story.append(matrix_table)
-    story.append(Spacer(1, 8))
-    story.append(p("Decisiones de priorización", "H2Aqua"))
-    decisions = [
-        "El alcance mínimo entregable queda formado por ubicación, consulta de clima, lectura de riesgo, mapa, alertas preventivas y pruebas en móvil.",
-        "Las mejoras visuales se trabajan solo cuando no afecten backend, integración o pruebas.",
-        "La capacitación se prepara desde la semana 5 para no improvisarla al final.",
-        "Cualquier función nueva pasa por el líder; si no ayuda a entregar en 6 semanas, se deja para otra versión.",
+    story.append(table(matrix, [0.9 * inch, 2.55 * inch, 2.6 * inch]))
+    story.append(p("Justificación de la priorización", "H2Formal"))
+    justifications = [
+        "Urgente e importante: se colocan aquí las actividades que sostienen la entrega. Sin requisitos claros no hay alcance; sin base de datos y backend no hay datos; sin frontend no hay producto visible; sin integración y pruebas no existe una versión confiable.",
+        "Importante pero no urgente: el diseño UX/UI y la capacitación son importantes porque ayudan a que AquaRisk sea entendible, pero se pueden planear con más margen si no bloquean el desarrollo central.",
+        "Urgente pero no importante: los materiales de exposición o ajustes de apariencia pueden tener fecha cercana, pero no deben desplazar tareas críticas.",
+        "Ni urgente ni importante: las funciones adicionales se consideran fuera del alcance de seis semanas. Incluirlas sería una decisión riesgosa porque aumentaría retrabajo y pruebas.",
     ]
-    for item in decisions:
+    for item in justifications:
         story.append(bullet(item))
-    story.append(PageBreak())
 
-    story.append(p("3. Cronograma tipo Gantt", "H1Aqua"))
+    story.append(PageBreak())
+    story.append(p("3. Cronograma de trabajo tipo Gantt", "H1Formal"))
     story.append(
         p(
-            "El cronograma se construyó con semanas laborales de lunes a viernes. La semana 6 se reserva para capacitación, cierre y margen de seguridad, porque AquaRisk depende de datos externos, GPS, notificaciones y validación real en dispositivos."
+            "El cronograma considera seis semanas laborales, del lunes 20 de julio al viernes 28 de agosto de 2026. Las barras muestran el periodo de trabajo de cada actividad. La planeación conserva una semana final para capacitación, cierre y margen de seguridad, porque AquaRisk depende de permisos del navegador, datos externos y pruebas en dispositivos reales."
         )
     )
     gantt = [
-        ["Actividad", "Responsable", "Dur.", "Dep.", "Sem. 1\n20-24 jul", "Sem. 2\n27-31 jul", "Sem. 3\n3-7 ago", "Sem. 4\n10-14 ago", "Sem. 5\n17-21 ago", "Sem. 6\n24-28 ago"],
-        ["Levantamiento de requisitos", "Osmar + equipo", "3d", "Inicio", p("20-22", "SmallWhite"), "", "", "", "", ""],
-        ["Diseño UX/UI", "Brian", "5d", "Req.", p("23-24", "SmallWhite"), p("27-29", "SmallWhite"), "", "", "", ""],
-        ["Diseño de base de datos", "Ángel + Diego", "2d", "Req.", p("23-24", "SmallWhite"), "", "", "", "", ""],
-        ["Desarrollo backend", "Ángel + Diego", "10d", "BD", "", p("27-31", "SmallWhite"), p("3-7", "SmallWhite"), "", "", ""],
-        ["Desarrollo frontend", "Alessandro + Valeria", "9d", "UX", "", p("30-31", "SmallWhite"), p("3-7", "SmallWhite"), p("10-11", "SmallWhite"), "", ""],
-        ["Integración", "Osmar + front + back", "3d", "Módulos", "", "", "", p("10-12", "SmallWhite"), "", ""],
-        ["Pruebas", "Ana Paula", "4d", "Integr.", "", "", "", p("13-14", "SmallWhite"), p("17-18", "SmallWhite"), ""],
-        ["Corrección de errores", "Todo el equipo", "3d", "Pruebas", "", "", "", "", p("19-21", "SmallWhite"), ""],
-        ["Capacitación al cliente", "Osmar + Ana Paula", "2d", "Estable", "", "", "", "", "", p("24-25", "SmallWhite")],
-        ["Cierre y entrega final", "Osmar + equipo", "3d", "Cap.", "", "", "", "", "", p("26-28", "SmallWhite")],
+        ["Actividad", "Responsable", "Dur.", "Dep.", "S1\n20-24 jul", "S2\n27-31 jul", "S3\n3-7 ago", "S4\n10-14 ago", "S5\n17-21 ago", "S6\n24-28 ago"],
+        ["Levantamiento de requisitos", "Osmar + equipo", "3d", "Inicio", "20-22", "", "", "", "", ""],
+        ["Diseño UX/UI", "Brian", "5d", "Req.", "23-24", "27-29", "", "", "", ""],
+        ["Diseño de base de datos", "Ángel + Diego", "2d", "Req.", "23-24", "", "", "", "", ""],
+        ["Desarrollo backend", "Ángel + Diego", "10d", "BD", "", "27-31", "3-7", "", "", ""],
+        ["Desarrollo frontend", "Alessandro + Valeria", "9d", "UX/UI", "", "30-31", "3-7", "10-11", "", ""],
+        ["Integración", "Osmar + front + back", "3d", "Mód.", "", "", "", "10-12", "", ""],
+        ["Pruebas", "Ana Paula", "4d", "Integr.", "", "", "", "13-14", "17-18", ""],
+        ["Corrección de errores", "Todo el equipo", "3d", "Pruebas", "", "", "", "", "19-21", ""],
+        ["Capacitación al cliente", "Osmar + Ana Paula", "2d", "Estable", "", "", "", "", "", "24-25"],
+        ["Cierre y entrega final", "Osmar + equipo", "3d", "Cap.", "", "", "", "", "", "26-28"],
     ]
-    gantt_table = styled_table(
+    gantt_table = table(
         gantt,
-        [1.32 * inch, 1.1 * inch, 0.4 * inch, 0.65 * inch] + [1.02 * inch] * 6,
-        font_size=7,
+        [0.96 * inch, 0.82 * inch, 0.32 * inch, 0.46 * inch, 0.58 * inch, 0.58 * inch, 0.58 * inch, 0.58 * inch, 0.58 * inch, 0.58 * inch],
+        center_cols={2, 4, 5, 6, 7, 8, 9},
     )
-    bar_colors = [TEAL, GREEN, PURPLE, TEAL, GREEN, PURPLE, TEAL, colors.HexColor("#D8527C"), GREEN, PURPLE]
+    bar_colors = [BAR_REQ, BAR_DESIGN, BAR_DB, BAR_DEV, BAR_DEV, BAR_INT, BAR_TEST, BAR_FIX, BAR_CLOSE, BAR_CLOSE]
     commands = []
     for row_index in range(1, len(gantt)):
-        color = bar_colors[row_index - 1]
         for col_index in range(4, 10):
             if gantt[row_index][col_index]:
-                commands.extend(
-                    [
-                        ("BACKGROUND", (col_index, row_index), (col_index, row_index), color),
-                        ("TEXTCOLOR", (col_index, row_index), (col_index, row_index), WHITE),
-                        ("FONTNAME", (col_index, row_index), (col_index, row_index), FONT_BOLD),
-                        ("ALIGN", (col_index, row_index), (col_index, row_index), "CENTER"),
-                    ]
-                )
-            else:
-                commands.append(("BACKGROUND", (col_index, row_index), (col_index, row_index), colors.HexColor("#FAFBFC")))
+                commands.extend([
+                    ("BACKGROUND", (col_index, row_index), (col_index, row_index), bar_colors[row_index - 1]),
+                    ("FONTNAME", (col_index, row_index), (col_index, row_index), FONT_BOLD),
+                ])
     gantt_table.setStyle(TableStyle(commands))
     story.append(gantt_table)
-    story.append(Spacer(1, 8))
-    story.append(
-        callout(
-            "Lectura del Gantt",
-            "Las barras muestran cuándo se trabaja cada actividad. Frontend y backend se empalman porque se integran por módulos; así el equipo detecta fallas antes de la última semana.",
-            LAVENDER,
-        )
-    )
-    story.append(PageBreak())
-
-    story.append(p("4. Gestión del tiempo y solución al imprevisto", "H1Aqua"))
+    story.append(Spacer(1, 6))
     story.append(
         p(
-            "Imprevisto trabajado por el equipo: durante la integración, AquaRisk puede presentar diferencias entre el pronóstico y la lluvia real observada, además de comportamientos distintos en permisos de ubicación, notificaciones o capa de radar según el dispositivo. Este imprevisto es creíble porque el proyecto depende de datos externos y permisos del navegador."
+            "Para evitar retrasos, el equipo revisará el avance al cierre de cada semana. Si una tarea crítica se atrasa más de un día, el líder deberá reasignar apoyo temporal antes de que el retraso afecte integración o pruebas."
         )
     )
-    q_rows = [
-        ["Pregunta", "Respuesta del equipo"],
-        ["¿Qué actividades cambiarían?", "Adelantaríamos integración técnica desde la semana 3, aunque sea con módulos incompletos. También moveríamos pruebas de permisos, GPS y notificaciones a una revisión temprana."],
-        ["¿Qué tareas pueden adelantarse?", "Casos de prueba, contrato de datos entre frontend y backend, estructura de Supabase, pantallas base, guía breve para cliente y validación en celular."],
-        ["¿Qué tareas deben retrasarse?", "Extras visuales, mapas secundarios, estadísticas históricas y funciones que no sean necesarias para demostrar lluvia, ubicación, zonas de riesgo y alertas."],
-        ["¿Cómo evitarían retrasar la entrega?", "Con revisión diaria de 15 minutos, tablero Kanban, responsables visibles, integración por módulos, pruebas desde semana 3, congelamiento de alcance en semana 5 y reserva operativa en semana 6."],
-    ]
-    story.append(styled_table(q_rows, [2.3 * inch, 7.45 * inch]))
-    story.append(Spacer(1, 8))
-    story.append(p("Medidas concretas de control", "H2Aqua"))
-    controls = [
-        ["Medida", "Aplicación"],
-        ["Control de alcance", "Desde semana 5 solo se corrigen errores y se ajusta claridad; no se agregan funciones nuevas."],
-        ["Revisión técnica", "Backend y frontend validan juntos clima, ubicación y riesgo antes de pruebas formales."],
-        ["Pruebas reales", "Ana Paula prueba en móvil, escritorio y navegador con permisos concedidos, bloqueados y restablecidos."],
-        ["Comunicación", "Osmar registra acuerdos, bloqueos y cambios para que nadie trabaje sobre suposiciones."],
-    ]
-    story.append(styled_table(controls, [2.1 * inch, 7.65 * inch]))
-    story.append(PageBreak())
 
-    story.append(p("5. Conclusión del equipo", "H1Aqua"))
+    story.append(PageBreak())
+    story.append(p("4. Gestión del tiempo y solución al imprevisto", "H1Formal"))
     story.append(
         p(
-            "Como equipo, consideramos que AquaRisk sí puede entregarse en 6 semanas si se cuida el orden de las dependencias y se evita crecer el alcance a mitad del sprint. La clave es no esperar hasta el final para integrar: backend, frontend, diseño y pruebas deben verse como partes conectadas del mismo avance. También aprendimos que una aplicación con clima, GPS y alertas no depende únicamente del código; depende de permisos, datos externos y validación en dispositivos reales. Por eso dejamos una semana final con margen, capacitación y cierre. Nuestra prioridad es entregar una versión funcional, clara para el usuario y defendible ante el cliente, aunque algunas funciones avanzadas queden para una segunda etapa."
+            "Problemática asignada para AquaRisk: durante el desarrollo se detecta que la información de lluvia puede variar entre la API meteorológica y lo que el usuario observa en tiempo real. Además, algunos dispositivos pueden pedir permisos de ubicación o notificaciones de forma distinta. Este imprevisto afecta directamente la confiabilidad de la app, por lo que no se puede dejar para el final."
         )
     )
-    story.append(Spacer(1, 10))
-    story.append(p("Referencias", "H1Aqua"))
-    refs = [
-        "Schwaber, K. y Sutherland, J. (2020). The Scrum Guide. https://scrumguides.org/scrum-guide.html",
-        "Project Management Institute. Project schedule management y control de cronogramas. https://www.pmi.org/",
-        "Covey, S. R. (1989). The 7 Habits of Highly Effective People. Matriz urgente/importante como apoyo para priorización.",
-        "Open-Meteo. Forecast API Documentation. https://open-meteo.com/en/docs",
-        "RainViewer. Weather Maps API. https://www.rainviewer.com/api/weather-maps-api.html",
-        "MDN Web Docs. Geolocation API y Notifications API. https://developer.mozilla.org/",
-        "Supabase. Documentation. https://supabase.com/docs",
+    impact = [
+        ["Pregunta", "Respuesta propuesta"],
+        ["¿Qué actividades cambiarían?", "Se adelantaría una integración parcial desde la semana 3 para probar datos reales, ubicación y alertas antes de terminar todas las pantallas. También se moverían las pruebas móviles a una etapa más temprana."],
+        ["¿Qué tareas pueden adelantarse?", "Casos de prueba, definición de datos mínimos, estructura de Supabase, permisos de ubicación, mensajes de alerta, validación de API y preparación del manual breve para cliente."],
+        ["¿Qué tareas deben retrasarse?", "Funciones secundarias, mejoras visuales no esenciales, reportes avanzados e historial de consultas. Estas tareas no se eliminan como idea, pero se posponen para no comprometer la entrega."],
+        ["¿Cómo evitarían retrasar la entrega?", "Congelando alcance al iniciar la semana 5, trabajando con revisiones diarias cortas, registrando bloqueos, integrando por módulos y dejando una reserva de tiempo para correcciones críticas."],
     ]
-    for ref in refs:
+    story.append(table(impact, [1.6 * inch, 4.45 * inch]))
+    story.append(p("Acciones concretas de control", "H2Formal"))
+    actions = [
+        "Osmar revisará cada dos días si las tareas críticas están dentro del tiempo planeado.",
+        "Backend y frontend acordarán desde la semana 2 el formato de datos para evitar cambios tardíos.",
+        "Ana Paula iniciará una lista de pruebas antes de la integración final, incluyendo permisos, ubicación, mapa y alertas.",
+        "Brian mantendrá el diseño enfocado en claridad de uso; no se agregarán elementos visuales que no ayuden a entender el riesgo.",
+        "Si una función no es indispensable para demostrar AquaRisk, se documentará como mejora futura.",
+    ]
+    for item in actions:
+        story.append(bullet(item))
+
+    story.append(p("5. Conclusión del equipo", "H1Formal"))
+    story.append(
+        p(
+            "Como equipo, concluimos que AquaRisk puede entregarse en seis semanas siempre que se respete el orden de actividades y se mantenga controlado el alcance. La planeación propuesta permite avanzar en paralelo sin perder de vista las dependencias principales. También ayuda a detectar riesgos antes de la última semana, especialmente en integración, ubicación, datos de lluvia y pruebas en dispositivos. Consideramos que la mejor forma de cumplir es entregar una versión funcional y estable, con interfaz clara y capacitación básica para el cliente, dejando las funciones adicionales para una etapa posterior."
+        )
+    )
+    story.append(p("Referencias consultadas", "H1Formal"))
+    for ref in [
+        "Schwaber, K. y Sutherland, J. (2020). The Scrum Guide.",
+        "Project Management Institute. Fundamentos de gestión de cronograma y control de proyectos.",
+        "Covey, S. R. (1989). The 7 Habits of Highly Effective People. Matriz urgente/importante.",
+        "Open-Meteo. Documentación de Forecast API.",
+        "MDN Web Docs. Geolocation API y Notifications API.",
+        "Supabase. Documentación de base de datos y servicios backend.",
+    ]:
         story.append(bullet(ref))
 
-    doc.build(story, onFirstPage=page_footer, onLaterPages=page_footer)
+    doc.build(story, onFirstPage=footer, onLaterPages=footer)
     print(PDF_PATH)
 
 
